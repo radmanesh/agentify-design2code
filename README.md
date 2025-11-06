@@ -15,9 +15,19 @@ data/               # HTML files and screenshots
 
 ## Installation
 
+1. Install dependencies:
+
 ```bash
 uv sync
 ```
+
+2. Install Playwright browser for screenshot generation:
+
+```bash
+uv run playwright install chromium
+```
+
+This downloads the Chromium browser (~130MB) needed for generating screenshots from HTML files during evaluation.
 
 ## Usage
 

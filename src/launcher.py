@@ -35,10 +35,10 @@ async def launch_evaluation():
 
     # send the task description for Design2Code evaluation
     print("Sending Design2Code task description to green agent...")
-    # Configuration for Design2Code assessment
+        # Configuration for the assessment task
     task_config = {
         "data_folder": "data",  # Folder containing HTML files and screenshots
-        "task_ids": [2, 6, 7, 11],  # HTML file IDs to evaluate (2.html, 6.html, etc.)
+        "task_ids": [6, 11],  # HTML file IDs to evaluate (6.html, 11.html, etc.)
     }
     # Format task message with XML-like tags for parsing
     task_text = f"""

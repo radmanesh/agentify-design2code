@@ -11,8 +11,9 @@ from .similarity_metrics import (
     calculate_text_similarity,
     calculate_position_similarity,
     calculate_color_similarity,
-    calculate_clip_similarity,
+    calculate_clip_similarity_from_paths,
 )
+from .screenshot_generator import generate_screenshot_from_html
 
 
 @dataclass
@@ -85,6 +86,17 @@ class VisualEvaluator:
             ref_screenshot_path = ref_html_path.replace(".html", ".png")
         if gen_screenshot_path is None:
             gen_screenshot_path = gen_html_path.replace(".html", ".png")
+
+        # Generate screenshots if they don't exist
+        if not os.path.exists(ref_screenshot_path):
+            print(f"Generating reference screenshot: {ref_screenshot_path}")
+            if not generate_screenshot_from_html(ref_html_path, ref_screenshot_path):
+                print(f"Warning: Failed to generate reference screenshot")
+
+        if not os.path.exists(gen_screenshot_path):
+            print(f"Generating generated screenshot: {gen_screenshot_path}")
+            if not generate_screenshot_from_html(gen_html_path, gen_screenshot_path):
+                print(f"Warning: Failed to generate generated screenshot")
 
         # Detect blocks
         ref_blocks = self.block_detector.detect_blocks(ref_html_path, ref_screenshot_path)
@@ -253,10 +265,10 @@ class VisualEvaluator:
         """
         try:
             if os.path.exists(path1) and os.path.exists(path2):
-                return calculate_clip_similarity(path1, path2)
+                return calculate_clip_similarity_from_paths(path1, path2)
             else:
                 print(f"Warning: Screenshot missing (ref: {os.path.exists(path1)}, gen: {os.path.exists(path2)})")
                 return 0.5
         except Exception as e:
-            print(f"Error calculating CLIP score: {e}")
+            print(f"Warning: CLIP similarity calculation failed: {e}")
             return 0.5
