@@ -1,0 +1,34 @@
+name = "design2code_green_agent"
+description = "The assessment hosting agent for Design2Code HTML generation tasks."
+version = "0.1.0"
+
+defaultInputModes = ["text"]
+defaultOutputModes = ["text"]
+[capabilities]
+streaming = false
+
+[[skills]]
+id = "host_assess_design2code"
+name = "Design2Code assessment hosting"
+description = """
+Assess the HTML generation ability of an agent from screenshots.
+"""
+tags = ["green agent", "assessment hosting", "design2code", "html generation"]
+examples = ["""
+Your task is to instantiate Design2Code assessment to test the agent located at:
+<white_agent_url>
+http://localhost:10002/
+</white_agent_url>
+You should use the following configuration:
+<env_config>
+{
+  "data_folder": "data",
+  "task_ids": [
+    2,
+    6,
+    7,
+    11
+  ]
+}
+</env_config>
+    """]
