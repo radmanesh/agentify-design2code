@@ -1,6 +1,7 @@
 """Main visual evaluation module for Design2Code."""
 
 import os
+import logging
 from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,6 +15,57 @@ from .similarity_metrics import (
     calculate_clip_similarity_from_paths,
 )
 from .screenshot_generator import generate_screenshot_from_html
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Add custom TRACE level (below DEBUG)
+TRACE_LEVEL = 5
+logging.addLevelName(TRACE_LEVEL, "TRACE")
+
+def trace(self, message, *args, **kwargs):
+    if self.isEnabledFor(TRACE_LEVEL):
+        self._log(TRACE_LEVEL, message, args, **kwargs)
+
+logging.Logger.trace = trace
+
+# Configure logging based on environment variable
+def _configure_eval_logging():
+    """Configure logging based on EVAL_DEBUG_LEVEL environment variable."""
+    import dotenv
+    dotenv.load_dotenv()
+
+    debug_level = os.getenv('EVAL_DEBUG_LEVEL', '').upper()
+
+    if not debug_level:
+        # Disable evaluation logging
+        logger.setLevel(logging.CRITICAL)
+        return
+
+    # Map level names to logging levels
+    level_map = {
+        'INFO': logging.INFO,
+        'DEBUG': logging.DEBUG,
+        'TRACE': TRACE_LEVEL
+    }
+
+    level = level_map.get(debug_level, logging.INFO)
+    logger.setLevel(level)
+
+    # Add handler if not already present
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+
+    logger.info(f"Evaluation logging configured at {debug_level} level")
+
+# Configure on module import
+_configure_eval_logging()
 
 
 @dataclass
@@ -81,35 +133,49 @@ class VisualEvaluator:
         Returns:
             EvaluationResult with all metrics
         """
+        logger.info("=" * 70)
+        logger.info("Starting visual evaluation")
+        logger.info(f"Reference HTML: {ref_html_path}")
+        logger.info(f"Generated HTML: {gen_html_path}")
+
         # Set screenshot paths
         if ref_screenshot_path is None:
             ref_screenshot_path = ref_html_path.replace(".html", ".png")
         if gen_screenshot_path is None:
             gen_screenshot_path = gen_html_path.replace(".html", ".png")
 
+        logger.debug(f"Reference screenshot: {ref_screenshot_path}")
+        logger.debug(f"Generated screenshot: {gen_screenshot_path}")
+
         # Generate screenshots if they don't exist
         if not os.path.exists(ref_screenshot_path):
-            print(f"Generating reference screenshot: {ref_screenshot_path}")
+            logger.info(f"Generating reference screenshot: {ref_screenshot_path}")
             if not generate_screenshot_from_html(ref_html_path, ref_screenshot_path):
-                print(f"Warning: Failed to generate reference screenshot")
+                logger.warning(f"Failed to generate reference screenshot")
 
         if not os.path.exists(gen_screenshot_path):
-            print(f"Generating generated screenshot: {gen_screenshot_path}")
+            logger.info(f"Generating generated screenshot: {gen_screenshot_path}")
             if not generate_screenshot_from_html(gen_html_path, gen_screenshot_path):
-                print(f"Warning: Failed to generate generated screenshot")
+                logger.warning(f"Failed to generate generated screenshot")
 
         # Detect blocks
+        logger.debug("Detecting text blocks in screenshots")
         ref_blocks = self.block_detector.detect_blocks(ref_html_path, ref_screenshot_path)
         gen_blocks = self.block_detector.detect_blocks(gen_html_path, gen_screenshot_path)
+
+        logger.info(f"Blocks detected - Reference: {len(ref_blocks)}, Generated: {len(gen_blocks)}")
 
         # Merge blocks with same bbox
         ref_blocks = self.block_detector.merge_blocks_by_bbox(ref_blocks)
         gen_blocks = self.block_detector.merge_blocks_by_bbox(gen_blocks)
 
+        logger.debug(f"After merging - Reference: {len(ref_blocks)}, Generated: {len(gen_blocks)}")
+
         # Handle empty blocks
         if len(ref_blocks) == 0 or len(gen_blocks) == 0:
-            print(f"Warning: Empty blocks detected (ref: {len(ref_blocks)}, gen: {len(gen_blocks)})")
+            logger.warning(f"Empty blocks detected (ref: {len(ref_blocks)}, gen: {len(gen_blocks)})")
             clip_score = self._safe_clip_score(ref_screenshot_path, gen_screenshot_path)
+            logger.info(f"Using CLIP-only score: {clip_score:.4f}")
             return EvaluationResult(
                 block_match_score=0.0,
                 text_score=0.0,
@@ -124,16 +190,23 @@ class VisualEvaluator:
             )
 
         # Match blocks
+        logger.debug("Matching blocks using Hungarian algorithm")
         matched_pairs, cost_matrix = self.block_matcher.match_blocks(
             ref_blocks, gen_blocks, self.consecutive_bonus, self.window_size
         )
 
+        logger.info(f"Block matching complete - {len(matched_pairs)} pairs matched")
+        logger.trace(f"Matched pair indices: {matched_pairs}")
+        logger.trace(f"Cost matrix shape: {cost_matrix.shape}")
+
         # Calculate metrics
+        logger.debug("Calculating evaluation metrics")
         scores = self._calculate_scores(
             ref_blocks, gen_blocks, matched_pairs,
             ref_screenshot_path, gen_screenshot_path
         )
 
+        logger.info("=" * 70)
         return scores
 
     def _calculate_scores(
@@ -158,8 +231,9 @@ class VisualEvaluator:
             EvaluationResult with all scores
         """
         if len(matched_pairs) == 0:
-            print("Warning: No matched blocks")
+            logger.warning("No matched blocks found")
             clip_score = self._safe_clip_score(ref_screenshot_path, gen_screenshot_path)
+            logger.info(f"Fallback to CLIP-only score: {clip_score:.4f}")
             return EvaluationResult(
                 block_match_score=0.0,
                 text_score=0.0,
@@ -200,11 +274,12 @@ class VisualEvaluator:
         block_match_score = matched_area / total_area if total_area > 0 else 0.0
 
         # Calculate per-pair scores
+        logger.debug(f"Calculating per-pair similarities for {len(matched_pairs)} pairs")
         text_scores = []
         position_scores = []
         color_scores = []
 
-        for ref_idx, gen_idx in matched_pairs:
+        for i, (ref_idx, gen_idx) in enumerate(matched_pairs):
             ref_block = ref_blocks[ref_idx]
             gen_block = gen_blocks[gen_idx]
 
@@ -220,18 +295,39 @@ class VisualEvaluator:
             color_sim = calculate_color_similarity(ref_block.color, gen_block.color)
             color_scores.append(color_sim)
 
+            logger.trace(f"Pair {i+1}/{len(matched_pairs)}: ref[{ref_idx}] <-> gen[{gen_idx}]")
+            logger.trace(f"  Text: {text_sim:.4f} ('{ref_block.text[:30]}...' vs '{gen_block.text[:30]}...')")
+            logger.trace(f"  Position: {pos_sim:.4f} (bbox: {ref_block.bbox} vs {gen_block.bbox})")
+            logger.trace(f"  Color: {color_sim:.4f} (RGB: {ref_block.color} vs {gen_block.color})")
+
         # Average scores
         text_score = sum(text_scores) / len(text_scores) if text_scores else 0.0
         position_score = sum(position_scores) / len(position_scores) if position_scores else 0.0
         color_score = sum(color_scores) / len(color_scores) if color_scores else 0.0
 
+        logger.debug(f"Average text similarity: {text_score:.4f} (across {len(text_scores)} pairs)")
+        logger.debug(f"Average position similarity: {position_score:.4f}")
+        logger.debug(f"Average color similarity: {color_score:.4f}")
+
         # CLIP score
+        logger.debug("Computing CLIP visual similarity")
         clip_score = self._safe_clip_score(ref_screenshot_path, gen_screenshot_path)
+        logger.debug(f"CLIP score: {clip_score:.4f}")
 
         # Overall score (average of 5 components)
         overall_score = 0.2 * (
             block_match_score + text_score + position_score + color_score + clip_score
         )
+
+        logger.info("EVALUATION RESULTS:")
+        logger.info(f"  Block Match:  {block_match_score:.4f}")
+        logger.info(f"  Text:         {text_score:.4f}")
+        logger.info(f"  Position:     {position_score:.4f}")
+        logger.info(f"  Color:        {color_score:.4f}")
+        logger.info(f"  CLIP:         {clip_score:.4f}")
+        logger.info(f"  OVERALL:      {overall_score:.4f}")
+        logger.debug(f"Formula: 0.2 × ({block_match_score:.4f} + {text_score:.4f} + {position_score:.4f} + {color_score:.4f} + {clip_score:.4f})")
+        logger.debug(f"Matched pairs: {len(matched_pairs)}/{len(ref_blocks)} ref blocks, {len(matched_pairs)}/{len(gen_blocks)} gen blocks")
 
         return EvaluationResult(
             block_match_score=block_match_score,
@@ -265,10 +361,14 @@ class VisualEvaluator:
         """
         try:
             if os.path.exists(path1) and os.path.exists(path2):
-                return calculate_clip_similarity_from_paths(path1, path2)
+                score = calculate_clip_similarity_from_paths(path1, path2)
+                logger.trace(f"CLIP similarity calculated: {score:.4f}")
+                return score
             else:
-                print(f"Warning: Screenshot missing (ref: {os.path.exists(path1)}, gen: {os.path.exists(path2)})")
+                logger.warning(f"Screenshot missing (ref: {os.path.exists(path1)}, gen: {os.path.exists(path2)})")
+                logger.warning("Using fallback CLIP score: 0.5")
                 return 0.5
         except Exception as e:
-            print(f"Warning: CLIP similarity calculation failed: {e}")
+            logger.error(f"CLIP similarity calculation failed: {e}")
+            logger.warning("Using fallback CLIP score: 0.5")
             return 0.5

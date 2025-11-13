@@ -1,12 +1,16 @@
 """Block detection from HTML screenshots using OCR-free approach."""
 
 import os
+import logging
 import subprocess
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass
 from PIL import Image
 import numpy as np
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -38,13 +42,21 @@ class BlockDetector:
         Returns:
             List of detected text blocks
         """
+        logger.debug(f"Detecting blocks in: {screenshot_path}")
+        logger.trace(f"HTML file: {html_path}")
+
         # Ensure screenshot exists
         if not os.path.exists(screenshot_path):
+            logger.debug(f"Screenshot not found, generating: {screenshot_path}")
             self._generate_screenshot(html_path, screenshot_path)
 
         # For now, return a simplified block detection
         # In production, implement the color-based OCR-free detection
         blocks = self._simple_block_detection(screenshot_path)
+
+        logger.debug(f"Detected {len(blocks)} text blocks")
+        for i, block in enumerate(blocks):
+            logger.trace(f"  Block {i+1}: text='{block.text[:50]}...', bbox={block.bbox}, color={block.color}")
 
         return blocks
 
@@ -88,12 +100,15 @@ class BlockDetector:
             image = Image.open(screenshot_path)
             width, height = image.size
 
+            logger.trace(f"Screenshot dimensions: {width}x{height}")
+            logger.trace("Using placeholder block detection (OCR-free method not yet implemented)")
+
             # Return empty list for now - this will be improved
             # with actual OCR or the Design2Code OCR-free method
             return []
 
         except Exception as e:
-            print(f"Error detecting blocks in {screenshot_path}: {e}")
+            logger.error(f"Error detecting blocks in {screenshot_path}: {e}")
             return []
 
     def merge_blocks_by_bbox(self, blocks: List[TextBlock]) -> List[TextBlock]:
@@ -106,6 +121,7 @@ class BlockDetector:
         Returns:
             Merged list of blocks
         """
+        logger.trace(f"Merging {len(blocks)} blocks by bounding box")
         merged_dict = {}
 
         for block in blocks:
@@ -123,7 +139,10 @@ class BlockDetector:
                     bbox=bbox_key,
                     color=merged_color
                 )
+                logger.trace(f"  Merged blocks at bbox {bbox_key}")
             else:
                 merged_dict[bbox_key] = block
 
-        return list(merged_dict.values())
+        result = list(merged_dict.values())
+        logger.debug(f"Merged {len(blocks)} blocks into {len(result)} unique blocks")
+        return result

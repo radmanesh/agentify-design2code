@@ -1,6 +1,7 @@
 """Design2Code environment - manages HTML generation tasks from screenshots."""
 
 import os
+import logging
 import base64
 import tempfile
 from pathlib import Path
@@ -9,6 +10,9 @@ from dataclasses import dataclass
 
 # Import evaluation module
 from src.evaluation import VisualEvaluator
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -146,6 +150,10 @@ Please provide your HTML code wrapped in <html_code>...</html_code> tags.
         if self.current_task is None:
             raise ValueError("Environment not reset. Call reset() first.")
 
+        logger.info(f"Evaluating generated HTML for task {self.current_task.task_id}")
+        logger.debug(f"Generated HTML length: {len(html_code)} chars")
+        logger.debug(f"Reference HTML length: {len(self.current_task.reference_html or '')} chars")
+
         self.generated_html = html_code
 
         # Save generated HTML to temporary file
@@ -158,8 +166,11 @@ Please provide your HTML code wrapped in <html_code>...</html_code> tags.
             f.write(html_code)
             gen_html_path = f.name
 
+        logger.trace(f"Generated HTML saved to temporary file: {gen_html_path}")
+
         try:
             # Use visual evaluator to calculate reward
+            logger.debug("Starting visual evaluation")
             result = self.evaluator.evaluate(
                 ref_html_path=self.current_task.reference_html_path,
                 gen_html_path=gen_html_path,
@@ -169,6 +180,28 @@ Please provide your HTML code wrapped in <html_code>...</html_code> tags.
 
             # Reward is the overall score from evaluation
             reward = result.overall_score
+
+            logger.info("=" * 70)
+            logger.info(f"TASK {self.current_task.task_id} EVALUATION SUMMARY")
+            logger.info("=" * 70)
+            logger.info(f"Block Detection:")
+            logger.info(f"  Reference blocks: {result.total_ref_blocks}")
+            logger.info(f"  Generated blocks: {result.total_gen_blocks}")
+            logger.info(f"  Matched pairs:    {result.matched_pairs}")
+            if result.total_ref_blocks > 0:
+                match_rate = result.matched_pairs / result.total_ref_blocks
+                logger.info(f"  Match rate:       {match_rate:.1%}")
+            logger.info("")
+            logger.info(f"Metric Scores:")
+            logger.info(f"  Block Match:      {result.block_match_score:.4f}")
+            logger.info(f"  Text Similarity:  {result.text_score:.4f}")
+            logger.info(f"  Position:         {result.position_score:.4f}")
+            logger.info(f"  Color:            {result.color_score:.4f}")
+            logger.info(f"  CLIP:             {result.clip_score:.4f}")
+            logger.info("")
+            logger.info(f"OVERALL SCORE:      {result.overall_score:.4f}")
+            logger.info(f"REWARD:             {reward:.4f}")
+            logger.info("=" * 70)
 
             observation = f"""HTML code evaluated using Design2Code metrics:
 - Block Match: {result.block_match_score:.3f}
@@ -196,10 +229,13 @@ Overall Score: {result.overall_score:.3f}
                 "total_gen_blocks": result.total_gen_blocks,
             }
 
+            logger.debug(f"Evaluation complete for task {self.current_task.task_id}")
+
         finally:
             # Clean up temporary file
             if os.path.exists(gen_html_path):
                 os.unlink(gen_html_path)
+                logger.trace(f"Cleaned up temporary file: {gen_html_path}")
 
         return EnvStepResult(
             observation=observation,

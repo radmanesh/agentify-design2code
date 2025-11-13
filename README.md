@@ -29,9 +29,28 @@ uv run playwright install chromium
 
 This downloads the Chromium browser (~130MB) needed for generating screenshots from HTML files during evaluation.
 
+## Configuration
+
+Create a `.env` file with the following variables:
+
+```bash
+# Required: OpenAI API Key for white agent
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Optional: Google API Key for ADK agents (only if using ADK)
+GOOGLE_API_KEY=your_google_api_key_here
+
+# Optional: Evaluation Debug Level
+# Options: INFO, DEBUG, TRACE, or leave empty to disable detailed logging
+# - INFO: High-level metrics (block counts, final scores)
+# - DEBUG: Per-pair details, matching statistics
+# - TRACE: All intermediate calculations, raw data
+EVAL_DEBUG_LEVEL=INFO
+```
+
 ## Usage
 
-First, configure `.env` with `OPENAI_API_KEY=...`, then
+After configuring `.env`, run:
 
 ```bash
 # Launch complete evaluation
