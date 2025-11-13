@@ -101,13 +101,17 @@ def create_white_agent_tool(white_agent_url: str = "http://localhost:10002"):
         )
         ```
     """
-    async def wrapper(screenshot_base64: str, description: str = "Generate HTML from this screenshot") -> str:
-        """Wrapper function with proper signature for ADK."""
+    async def generate_html_from_screenshot(screenshot_base64: str, description: str = "Generate HTML from this screenshot") -> str:
+        """Generate HTML code from a screenshot by calling the white agent HTTP server.
+
+        Args:
+            screenshot_base64: Base64-encoded PNG screenshot
+            description: Task description for HTML generation
+
+        Returns:
+            Generated HTML code as a string
+        """
         return await call_white_agent_http(screenshot_base64, white_agent_url, description)
 
-    return FunctionTool(
-        name="generate_html_from_screenshot",
-        description="Generate HTML code from a screenshot by calling the white agent HTTP server",
-        func=wrapper
-    )
+    return FunctionTool(func=generate_html_from_screenshot)
 

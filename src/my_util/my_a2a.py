@@ -25,7 +25,7 @@ async def get_agent_card(url: str) -> AgentCard | None:
     return card
 
 
-async def wait_agent_ready(url, timeout=10):
+async def wait_agent_ready(url, timeout=30):
     # wait until the A2A server is ready, check by getting the agent card
     retry_cnt = 0
     while retry_cnt < timeout:
