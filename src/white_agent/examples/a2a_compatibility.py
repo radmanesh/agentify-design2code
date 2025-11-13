@@ -1,7 +1,7 @@
 """Example: A2A compatibility of the white agent.
 
-This example demonstrates that the white agent, despite being a native ADK agent,
-is fully compatible with the A2A protocol through ADK's to_a2a() function.
+This example demonstrates that the white agent maintains A2A protocol support
+alongside the new LangChain/LangServe interface.
 """
 
 import asyncio
@@ -25,7 +25,7 @@ async def example_a2a_client_access():
     white_agent_url = "http://localhost:10002"
 
     print(f"\nAttempting to connect to white agent at {white_agent_url}")
-    print("(Make sure the white agent server is running: uv run python main.py white)")
+    print("(Make sure the A2A server is running: uv run python main.py white)")
 
     # Test 1: Get agent card
     print("\n" + "-" * 60)
@@ -97,66 +97,69 @@ The green agent uses the A2A protocol to communicate with the white agent.
 Here's what happens:
 
 1. Green agent sends screenshot + task via A2A HTTP request
-2. White agent (now ADK-native) receives via to_a2a() wrapper
-3. ADK automatically handles protocol conversion
-4. White agent generates HTML using vision model
-5. Response is sent back via A2A protocol
-6. Green agent receives and evaluates the HTML
+2. White agent (A2A server) receives the request
+3. White agent uses OpenAI GPT-4o Vision to generate HTML
+4. Response is sent back via A2A protocol
+5. Green agent receives and evaluates the HTML
 
 Key points:
 ✓ No changes needed to green agent code
 ✓ No changes needed to launcher.py
 ✓ Existing evaluation workflow works as-is
-✓ A2A protocol is automatically handled by ADK
+✓ A2A protocol compatibility maintained
 
-This is the power of ADK's to_a2a() function - it provides
-A2A compatibility automatically for native ADK agents!
+This ensures backward compatibility with all existing A2A clients!
 """)
 
 
-async def example_dual_protocol_support():
+async def example_dual_interface_support():
     """
-    Example explaining the dual protocol support.
+    Example explaining the dual interface support.
     """
     print("\n" + "=" * 60)
-    print("Example: Dual Protocol Support")
+    print("Example: Dual Interface Support")
     print("=" * 60)
 
     print("""
-The white agent now supports BOTH protocols simultaneously:
+The white agent now supports TWO interfaces simultaneously:
 
 ┌─────────────────────────────────────────────────────┐
-│                  White Agent                        │
-│            (Native ADK Agent)                       │
+│              White Agent (OpenAI GPT-4o)            │
 │                                                     │
 │  ┌────────────────────────────────────────────┐   │
 │  │    HTML Generation Logic                   │   │
-│  │    (LiteLLM + Vision Model)               │   │
+│  │    (OpenAI GPT-4o Vision)                 │   │
 │  └────────────────────────────────────────────┘   │
 │                      ↑                              │
 │         ┌────────────┴────────────┐               │
 │         │                         │                │
 │    ┌────┴────┐              ┌────┴────┐          │
-│    │   ADK   │              │   A2A   │          │
-│    │Interface│              │Interface│          │
-│    │         │              │(via     │          │
-│    │         │              │to_a2a() )│          │
+│    │   A2A   │              │LangChain│          │
+│    │  HTTP   │              │LangServe│          │
+│    │ Server  │              │ (Web UI)│          │
+│    │         │              │         │          │
 │    └────┬────┘              └────┬────┘          │
 └─────────┼──────────────────────────┼───────────────┘
           │                          │
           │                          │
      ┌────▼────┐              ┌──────▼─────┐
-     │   ADK   │              │    A2A     │
-     │ Agents  │              │  Clients   │
-     │(AgentTool)│            │ (Green Agent)│
+     │   A2A   │              │ LangChain  │
+     │ Clients │              │  Agents &  │
+     │(Green   │              │  Web UI    │
+     │ Agent)  │              │(Playground)│
      └─────────┘              └────────────┘
 
+Port 10002: A2A HTTP Server   Port 8000: LangServe Web UI
+
+Start A2A server:    uv run python main.py white
+Start LangServe:     uv run python main.py langserve
+
 Benefits:
-• Single implementation serves both protocols
-• No code duplication
-• Easier to maintain
-• More flexible integration options
-• Future-proof architecture
+• Single codebase, multiple interfaces
+• Backward compatible with A2A clients
+• Modern web UI via LangServe
+• Choose interface based on use case
+• Both use OpenAI GPT-4o (no Google dependency)
 """)
 
 
@@ -164,25 +167,23 @@ async def main():
     """Run all examples."""
     print("\nWhite Agent - A2A Compatibility Examples")
     print("=" * 60)
-    print("\nThese examples demonstrate that the native ADK white agent")
-    print("maintains full A2A compatibility through ADK's to_a2a() function.")
+    print("\nThese examples demonstrate that the white agent maintains")
+    print("full A2A compatibility alongside the new LangChain interface.")
     print()
 
     await example_a2a_client_access()
     await example_green_agent_compatibility()
-    await example_dual_protocol_support()
+    await example_dual_interface_support()
 
     print("\n" + "=" * 60)
     print("Examples completed!")
     print("=" * 60)
     print("\nKey Takeaways:")
-    print("  • Native ADK agent with automatic A2A support")
-    print("  • Green agent works without modifications")
-    print("  • Dual protocol support (ADK + A2A)")
-    print("  • Single implementation, multiple interfaces")
-    print("  • Best of both worlds!")
-
+    print("  • A2A interface still works (port 10002)")
+    print("  • LangServe interface available (port 8000)")
+    print("  • Green agent workflow unchanged")
+    print("  • Both interfaces use OpenAI GPT-4o")
+    print("  • Choose the right interface for your needs")
 
 if __name__ == "__main__":
     asyncio.run(main())
-

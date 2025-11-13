@@ -40,8 +40,11 @@ uv run python main.py launch
 # Start green agent only
 uv run python main.py green
 
-# Start white agent only
+# Start white agent only (A2A HTTP server)
 uv run python main.py white
+
+# Start white agent with LangServe web interface
+uv run python main.py langserve
 ```
 
 ## Dataset
@@ -176,3 +179,143 @@ uv run python -m src.white_agent.examples.a2a_compatibility
 2. **For A2A Clients**: Call directly via A2A protocol
 3. **For ADK Users**: Use client wrapper to call HTTP server
 4. **Multi-Agent**: ADK agents (Gemini) delegate to white agent (OpenAI) via HTTP
+
+## For LangChain Users (Recommended Web Interface)
+
+The white agent now includes a **LangChain/LangServe interface** with a professional web UI and REST API, all using OpenAI GPT-4o Vision.
+
+### Quick Start
+
+```bash
+# Install dependencies (if not already done)
+uv sync
+
+# Start LangServe web interface
+uv run python main.py langserve
+```
+
+Then open your browser to:
+- **Interactive Playground**: http://localhost:8000/agent/playground
+- **API Documentation**: http://localhost:8000/docs
+- **Simple Mode**: http://localhost:8000/simple/playground
+
+### Features
+
+- ✅ **Professional Web UI** - Interactive chat interface with playground
+- ✅ **OpenAI GPT-4o Vision** - Direct OpenAI integration (no Google dependency)
+- ✅ **Streaming Responses** - Real-time response streaming
+- ✅ **REST API** - Full API for programmatic access
+- ✅ **Agent Mode** - Full reasoning and tool use capabilities
+- ✅ **Simple Mode** - Direct HTML generation without agent overhead
+
+### Using the Agent in Code
+
+#### Direct Function Call (Simplest)
+
+```python
+from src.white_agent import generate_html_from_screenshot_impl
+import asyncio
+
+async def generate():
+    html = generate_html_from_screenshot_impl(
+        screenshot_base64="<your_base64_screenshot>",
+        description="Generate a landing page"
+    )
+    return html
+
+asyncio.run(generate())
+```
+
+#### LangChain Agent Executor
+
+```python
+from src.white_agent import create_white_agent
+import asyncio
+
+async def use_agent():
+    agent = create_white_agent()
+
+    result = agent.invoke({
+        "input": "Generate HTML from this screenshot: <base64_data>"
+    })
+
+    print(result["output"])
+
+asyncio.run(use_agent())
+```
+
+#### Simple Chain (Fast, No Agent)
+
+```python
+from src.white_agent import create_simple_chain
+
+chain = create_simple_chain()
+
+result = chain({
+    "screenshot_base64": "<base64_data>",
+    "description": "Generate HTML"
+})
+
+html = result["output"]
+```
+
+### API Usage
+
+The LangServe API provides multiple endpoints:
+
+```bash
+# Agent endpoint (with reasoning)
+curl -X POST "http://localhost:8000/agent/invoke" \
+  -H "Content-Type: application/json" \
+  -d '{"input": {"input": "Generate HTML from: <base64>"}}'
+
+# Simple endpoint (direct generation)
+curl -X POST "http://localhost:8000/simple/invoke" \
+  -H "Content-Type: application/json" \
+  -d '{"input": {"screenshot_base64": "<base64>", "description": "Generate HTML"}}'
+
+# Health check
+curl http://localhost:8000/health
+```
+
+### Running Examples
+
+```bash
+# Start LangServe first
+uv run python main.py langserve
+
+# In another terminal, run examples
+uv run python -m src.white_agent.examples.langchain_usage
+uv run python -m src.white_agent.examples.a2a_compatibility
+```
+
+### Architecture Comparison
+
+| Interface | Port | Use Case | LLM |
+|-----------|------|----------|-----|
+| **A2A Server** | 10002 | Green agent evaluation, A2A clients | OpenAI GPT-4o |
+| **LangServe** | 8000 | Web UI, REST API, LangChain agents | OpenAI GPT-4o |
+| **ADK Wrapper** | - | ADK agents (calls A2A server) | Gemini (orchestration) + OpenAI (HTML gen) |
+
+**Recommendation**: Use LangServe for:
+- Interactive web interface
+- Development and testing
+- REST API access
+- LangChain-based workflows
+- When you want the best web experience with OpenAI
+
+Use A2A server for:
+- Green agent evaluation
+- Production A2A workflows
+- When you need A2A protocol compliance
+
+### Benefits of LangServe Interface
+
+- ✅ **All OpenAI** - No Google API keys needed
+- ✅ **Better UI** - Professional web interface with playground
+- ✅ **Developer Friendly** - Interactive docs, streaming, batch processing
+- ✅ **Production Ready** - FastAPI backend, scalable
+- ✅ **Flexible** - Agent mode for reasoning, simple mode for speed
+- ✅ **Observable** - Compatible with LangSmith for monitoring
+
+**Requirements**: Only `OPENAI_API_KEY` needed (no Google dependencies)
