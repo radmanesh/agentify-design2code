@@ -2,10 +2,22 @@
 
 import typer
 import asyncio
+import os
+import dotenv
 
 from src.green_agent import start_green_agent
 from src.white_agent import start_white_agent
 from src.launcher import launch_evaluation
+
+# Debug: Load and check environment variables
+print("[DEBUG] Loading .env in main.py...")
+dotenv.load_dotenv()
+api_key = os.getenv("OPENAI_API_KEY")
+print(f"[DEBUG] OPENAI_API_KEY in main.py: {'Found' if api_key else 'NOT FOUND'}")
+if api_key:
+    print(f"[DEBUG] API key starts with: {api_key[:7]}... (length: {len(api_key)})")
+else:
+    print("[DEBUG] WARNING: OPENAI_API_KEY not found in environment!")
 
 # Main Typer app for CLI interface
 app = typer.Typer(help="Agentified Design2Code - HTML generation assessment framework")

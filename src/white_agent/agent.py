@@ -14,9 +14,15 @@ import os
 
 dotenv.load_dotenv()
 
-
 # Debug: verify API key is loaded
 api_key = os.getenv("OPENAI_API_KEY")
+print(f"[DEBUG] .env loaded at module level")
+print(f"[DEBUG] OPENAI_API_KEY from environment: {'Found' if api_key else 'NOT FOUND'}")
+if api_key:
+    print(f"[DEBUG] API key starts with: {api_key[:7]}... (length: {len(api_key)})")
+else:
+    print(f"[DEBUG] OPENAI_API_KEY is None or empty")
+
 if not api_key:
     raise ValueError("OPENAI_API_KEY not found in environment variables")
 
@@ -143,17 +149,23 @@ class HtmlGenerationWhiteAgentExecutor(AgentExecutor):
 
         # Get API key
         api_key = os.getenv("OPENAI_API_KEY")
+        print(f"[DEBUG] API key in execute method: {'Found' if api_key else 'NOT FOUND'}")
+        if api_key:
+            print(f"[DEBUG] API key starts with: {api_key[:7]}... (length: {len(api_key)})")
         if not api_key:
             raise ValueError("OPENAI_API_KEY not found in environment variables")
 
         # Call LLM with vision capability
         print(f"White agent: Calling LLM with {len(messages)} messages...")
+        print(f"[DEBUG] About to call completion with model='openai/gpt-4o'")
+        print(f"[DEBUG] Passing api_key: {api_key[:7]}...")
         response = completion(
             messages=messages,
             model="openai/gpt-4o",  # GPT-4o supports vision
             temperature=0.0,
             api_key=api_key,
         )
+        print(f"[DEBUG] LiteLLM completion successful")
 
         # Extract response
         next_message = response.choices[0].message.model_dump()  # type: ignore

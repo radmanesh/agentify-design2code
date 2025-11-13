@@ -2,9 +2,19 @@
 
 import multiprocessing
 import json
+import os
+import dotenv
 from src.green_agent.agent import start_green_agent
 from src.white_agent.agent import start_white_agent
 from src.my_util import my_a2a
+
+# Debug: Load and check environment variables
+print("[DEBUG] Loading .env in launcher...")
+dotenv.load_dotenv()
+api_key = os.getenv("OPENAI_API_KEY")
+print(f"[DEBUG] OPENAI_API_KEY in launcher: {'Found' if api_key else 'NOT FOUND'}")
+if api_key:
+    print(f"[DEBUG] API key starts with: {api_key[:7]}... (length: {len(api_key)})")
 
 
 async def launch_evaluation():
