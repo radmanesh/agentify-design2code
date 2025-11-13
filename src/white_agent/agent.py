@@ -179,7 +179,7 @@ class HtmlGenerationWhiteAgentExecutor(AgentExecutor):
         raise NotImplementedError
 
 
-def start_white_agent(agent_name="html_generation_white_agent", host="localhost", port=9002):
+def start_white_agent(agent_name="html_generation_white_agent", host="localhost", port=10002):
     """
     Start the white agent HTTP server.
 

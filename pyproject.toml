@@ -22,4 +22,5 @@ dependencies = [
     "regex>=2023.0.0",
     "open-clip-torch>=2.20.0",
     "playwright>=1.40.0",
+    "google-adk[a2a]>=0.1.0",
 ]
