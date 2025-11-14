@@ -347,24 +347,12 @@ class BlockDetector:
         Returns:
             List of detected text blocks
         """
-        logger.debug(f"Detecting blocks in: {screenshot_path}")
-        logger.trace(f"HTML file: {html_path}")
-
         # Ensure screenshot exists
         if not os.path.exists(screenshot_path):
-            logger.debug(f"Screenshot not found, generating: {screenshot_path}")
             self._generate_screenshot(html_path, screenshot_path)
 
         # Use OCR-free block detection
         blocks = self._ocr_free_block_detection(html_path, screenshot_path)
-
-        logger.debug(f"Detected {len(blocks)} text blocks")
-        for i, block in enumerate(blocks):
-            text_preview = block.text[:50] if len(block.text) > 50 else block.text
-            logger.trace(
-                f"  Block {i+1}: text='{text_preview}...', "
-                f"bbox={block.bbox}, color={block.color}"
-            )
 
         return blocks
 
@@ -379,7 +367,6 @@ class BlockDetector:
         output_dir = Path(output_path).parent
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        logger.debug(f"Generating screenshot for {html_path}")
         success = generate_screenshot_from_html(html_path, output_path)
 
         if not success or not os.path.exists(output_path):
@@ -412,8 +399,6 @@ class BlockDetector:
         Returns:
             List of detected TextBlock objects
         """
-        logger.debug(f"Running OCR-free block detection on {html_path}")
-
         # Generate temporary file paths in the same directory as screenshot
         screenshot_dir = Path(screenshot_path).parent
         screenshot_stem = Path(screenshot_path).stem
@@ -426,25 +411,21 @@ class BlockDetector:
 
         try:
             # Process HTML with two different color offsets
-            logger.trace("Processing HTML with color offsets 0 and 50")
             process_html(html_path, str(p_html), offset=0)
             process_html(html_path, str(p_html_1), offset=50)
 
             # Take screenshots of both color-coded versions
-            logger.trace(f"Generating screenshot for {p_html}")
             success1 = generate_screenshot_from_html(str(p_html), str(p_png))
             if not success1:
                 logger.warning(f"Failed to generate screenshot for {p_html}")
                 return []
 
-            logger.trace(f"Generating screenshot for {p_html_1}")
             success2 = generate_screenshot_from_html(str(p_html_1), str(p_png_1))
             if not success2:
                 logger.warning(f"Failed to generate screenshot for {p_html_1}")
                 return []
 
             # Find different pixels between the two screenshots
-            logger.trace("Finding different pixels between color-coded screenshots")
             different_pixels = find_different_pixels(str(p_png), str(p_png_1))
 
             if different_pixels is None:
@@ -453,16 +434,10 @@ class BlockDetector:
                 )
                 return []
 
-            logger.trace(f"Found {len(different_pixels)} different pixels")
-
             # Extract text with color information from HTML
-            logger.trace("Extracting text with color information from HTML")
             html_text_color_tree = flatten_tree(extract_text_with_color(str(p_html)))
 
-            logger.trace(f"Extracted {len(html_text_color_tree)} text elements")
-
             # Get blocks from image difference pixels
-            logger.trace("Extracting blocks from image difference pixels")
             blocks_dict = get_blocks_from_image_diff_pixels(
                 str(p_png),
                 screenshot_path,
@@ -480,8 +455,6 @@ class BlockDetector:
                 for block in blocks_dict
             ]
 
-            logger.debug(f"Detected {len(blocks)} text blocks using OCR-free method")
-
             return blocks
 
         except Exception as e:
@@ -490,12 +463,10 @@ class BlockDetector:
 
         finally:
             # Clean up temporary files
-            logger.trace("Cleaning up temporary files")
             for tmp_file in [p_html, p_html_1, p_png, p_png_1]:
                 try:
                     if tmp_file.exists():
                         tmp_file.unlink()
-                        logger.trace(f"Removed temporary file: {tmp_file}")
                 except Exception as e:
                     logger.warning(f"Failed to remove temporary file {tmp_file}: {e}")
 
@@ -509,7 +480,6 @@ class BlockDetector:
         Returns:
             Merged list of blocks
         """
-        logger.trace(f"Merging {len(blocks)} blocks by bounding box")
         merged_dict = {}
 
         for block in blocks:
@@ -527,10 +497,8 @@ class BlockDetector:
                     bbox=bbox_key,
                     color=merged_color
                 )
-                logger.trace(f"  Merged blocks at bbox {bbox_key}")
             else:
                 merged_dict[bbox_key] = block
 
         result = list(merged_dict.values())
-        logger.debug(f"Merged {len(blocks)} blocks into {len(result)} unique blocks")
         return result

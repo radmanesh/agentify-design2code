@@ -144,9 +144,6 @@ class VisualEvaluator:
         if gen_screenshot_path is None:
             gen_screenshot_path = gen_html_path.replace(".html", ".png")
 
-        logger.debug(f"Reference screenshot: {ref_screenshot_path}")
-        logger.debug(f"Generated screenshot: {gen_screenshot_path}")
-
         # Generate screenshots if they don't exist
         if not os.path.exists(ref_screenshot_path):
             logger.info(f"Generating reference screenshot: {ref_screenshot_path}")
@@ -159,7 +156,6 @@ class VisualEvaluator:
                 logger.warning(f"Failed to generate generated screenshot")
 
         # Detect blocks
-        logger.debug("Detecting text blocks in screenshots")
         ref_blocks = self.block_detector.detect_blocks(ref_html_path, ref_screenshot_path)
         gen_blocks = self.block_detector.detect_blocks(gen_html_path, gen_screenshot_path)
 
@@ -168,8 +164,6 @@ class VisualEvaluator:
         # Merge blocks with same bbox
         ref_blocks = self.block_detector.merge_blocks_by_bbox(ref_blocks)
         gen_blocks = self.block_detector.merge_blocks_by_bbox(gen_blocks)
-
-        logger.debug(f"After merging - Reference: {len(ref_blocks)}, Generated: {len(gen_blocks)}")
 
         # Handle empty blocks
         if len(ref_blocks) == 0 or len(gen_blocks) == 0:
@@ -190,17 +184,13 @@ class VisualEvaluator:
             )
 
         # Match blocks
-        logger.debug("Matching blocks using Hungarian algorithm")
         matched_pairs, cost_matrix = self.block_matcher.match_blocks(
             ref_blocks, gen_blocks, self.consecutive_bonus, self.window_size
         )
 
         logger.info(f"Block matching complete - {len(matched_pairs)} pairs matched")
-        logger.trace(f"Matched pair indices: {matched_pairs}")
-        logger.trace(f"Cost matrix shape: {cost_matrix.shape}")
 
         # Calculate metrics
-        logger.debug("Calculating evaluation metrics")
         scores = self._calculate_scores(
             ref_blocks, gen_blocks, matched_pairs,
             ref_screenshot_path, gen_screenshot_path
@@ -274,7 +264,6 @@ class VisualEvaluator:
         block_match_score = matched_area / total_area if total_area > 0 else 0.0
 
         # Calculate per-pair scores
-        logger.debug(f"Calculating per-pair similarities for {len(matched_pairs)} pairs")
         text_scores = []
         position_scores = []
         color_scores = []
@@ -295,24 +284,13 @@ class VisualEvaluator:
             color_sim = calculate_color_similarity(ref_block.color, gen_block.color)
             color_scores.append(color_sim)
 
-            logger.trace(f"Pair {i+1}/{len(matched_pairs)}: ref[{ref_idx}] <-> gen[{gen_idx}]")
-            logger.trace(f"  Text: {text_sim:.4f} ('{ref_block.text[:30]}...' vs '{gen_block.text[:30]}...')")
-            logger.trace(f"  Position: {pos_sim:.4f} (bbox: {ref_block.bbox} vs {gen_block.bbox})")
-            logger.trace(f"  Color: {color_sim:.4f} (RGB: {ref_block.color} vs {gen_block.color})")
-
         # Average scores
         text_score = sum(text_scores) / len(text_scores) if text_scores else 0.0
         position_score = sum(position_scores) / len(position_scores) if position_scores else 0.0
         color_score = sum(color_scores) / len(color_scores) if color_scores else 0.0
 
-        logger.debug(f"Average text similarity: {text_score:.4f} (across {len(text_scores)} pairs)")
-        logger.debug(f"Average position similarity: {position_score:.4f}")
-        logger.debug(f"Average color similarity: {color_score:.4f}")
-
         # CLIP score
-        logger.debug("Computing CLIP visual similarity")
         clip_score = self._safe_clip_score(ref_screenshot_path, gen_screenshot_path)
-        logger.debug(f"CLIP score: {clip_score:.4f}")
 
         # Overall score (average of 5 components)
         overall_score = 0.2 * (
@@ -326,8 +304,6 @@ class VisualEvaluator:
         logger.info(f"  Color:        {color_score:.4f}")
         logger.info(f"  CLIP:         {clip_score:.4f}")
         logger.info(f"  OVERALL:      {overall_score:.4f}")
-        logger.debug(f"Formula: 0.2 × ({block_match_score:.4f} + {text_score:.4f} + {position_score:.4f} + {color_score:.4f} + {clip_score:.4f})")
-        logger.debug(f"Matched pairs: {len(matched_pairs)}/{len(ref_blocks)} ref blocks, {len(matched_pairs)}/{len(gen_blocks)} gen blocks")
 
         return EvaluationResult(
             block_match_score=block_match_score,
@@ -362,7 +338,6 @@ class VisualEvaluator:
         try:
             if os.path.exists(path1) and os.path.exists(path2):
                 score = calculate_clip_similarity_from_paths(path1, path2)
-                logger.trace(f"CLIP similarity calculated: {score:.4f}")
                 return score
             else:
                 logger.warning(f"Screenshot missing (ref: {os.path.exists(path1)}, gen: {os.path.exists(path2)})")

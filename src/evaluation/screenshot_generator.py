@@ -2,8 +2,12 @@
 
 import time
 import asyncio
+import logging
 from pathlib import Path
 from typing import Optional
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 def generate_screenshot_from_html(
@@ -92,10 +96,10 @@ def _generate_screenshot_sync(
                 return True
 
         except ImportError:
-            print("Warning: playwright not installed, falling back to selenium")
+            logger.warning("playwright not installed, falling back to selenium")
             method = "selenium"
         except Exception as e:
-            print(f"Warning: playwright screenshot failed: {e}")
+            logger.warning(f"playwright screenshot failed: {e}")
             return False
 
     # Fallback to selenium
@@ -134,12 +138,12 @@ def _generate_screenshot_sync(
                 driver.quit()
 
         except ImportError:
-            print("Error: Neither playwright nor selenium is installed")
-            print("Install with: uv add playwright && uv run playwright install chromium")
-            print("Or: uv add selenium")
+            logger.error("Neither playwright nor selenium is installed")
+            logger.error("Install with: uv add playwright && uv run playwright install chromium")
+            logger.error("Or: uv add selenium")
             return False
         except Exception as e:
-            print(f"Error: selenium screenshot failed: {e}")
+            logger.error(f"selenium screenshot failed: {e}")
             return False
 
     return False

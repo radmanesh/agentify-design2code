@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 from PIL import Image
 import tempfile
+import numpy as np
 
 from src.evaluation.block_detector import BlockDetector, TextBlock
 
@@ -55,7 +56,10 @@ class TestBlockDetector:
         # The screenshot file already exists, so generation should not be called
         with patch.object(
             block_detector, '_generate_screenshot'
-        ) as mock_generate:
+        ) as mock_generate, \
+        patch.object(
+            block_detector, '_ocr_free_block_detection', return_value=[]
+        ) as mock_ocr_free:
             blocks = block_detector.detect_blocks(
                 temp_html_file, temp_screenshot_file
             )
@@ -63,9 +67,11 @@ class TestBlockDetector:
             # Should not call _generate_screenshot since file exists
             mock_generate.assert_not_called()
 
-            # Should return empty list (placeholder behavior)
+            # Should call _ocr_free_block_detection
+            mock_ocr_free.assert_called_once_with(temp_html_file, temp_screenshot_file)
+
+            # Should return list from OCR-free detection
             assert isinstance(blocks, list)
-            assert len(blocks) == 0
 
     def test_detect_blocks_generates_missing_screenshot(
         self, block_detector, temp_html_file, tmp_path
@@ -81,7 +87,10 @@ class TestBlockDetector:
 
         with patch.object(
             block_detector, '_generate_screenshot', side_effect=mock_generate
-        ) as mock_generate_method:
+        ) as mock_generate_method, \
+        patch.object(
+            block_detector, '_ocr_free_block_detection', return_value=[]
+        ):
             blocks = block_detector.detect_blocks(
                 temp_html_file, screenshot_path
             )
@@ -94,7 +103,7 @@ class TestBlockDetector:
             # Screenshot should now exist
             assert os.path.exists(screenshot_path)
 
-            # Should return empty list (placeholder behavior)
+            # Should return list from OCR-free detection
             assert isinstance(blocks, list)
 
     def test_generate_screenshot_creates_directory(
@@ -166,24 +175,76 @@ class TestBlockDetector:
             assert "Screenshot generation failed" in str(exc_info.value)
             assert temp_html_file in str(exc_info.value)
 
-    def test_simple_block_detection_returns_empty(
-        self, block_detector, temp_screenshot_file
+    def test_ocr_free_block_detection_with_mocked_pipeline(
+        self, block_detector, temp_html_file, temp_screenshot_file, tmp_path
     ):
-        """Test that _simple_block_detection returns empty list (placeholder)."""
-        blocks = block_detector._simple_block_detection(temp_screenshot_file)
+        """Test that _ocr_free_block_detection runs the full pipeline with mocks."""
+        # Mock all the helper functions in the pipeline
+        with patch('src.evaluation.block_detector.process_html') as mock_process, \
+             patch('src.evaluation.block_detector.generate_screenshot_from_html', return_value=True), \
+             patch('src.evaluation.block_detector.find_different_pixels') as mock_diff_pixels, \
+             patch('src.evaluation.block_detector.extract_text_with_color') as mock_extract_text, \
+             patch('src.evaluation.block_detector.flatten_tree') as mock_flatten, \
+             patch('src.evaluation.block_detector.get_blocks_from_image_diff_pixels') as mock_get_blocks:
 
-        assert isinstance(blocks, list)
-        assert len(blocks) == 0
+            # Setup mock return values
+            mock_diff_pixels.return_value = np.array([[10, 20], [30, 40]])
+            mock_extract_text.return_value = [('test', '#FF0000')]
+            mock_flatten.return_value = [('test', '#FF0000')]
+            mock_get_blocks.return_value = [{
+                'text': 'test',
+                'bbox': (0.1, 0.2, 0.3, 0.4),
+                'color': (255, 0, 0)
+            }]
 
-    def test_simple_block_detection_handles_missing_file(
-        self, block_detector
+            # Call the method
+            blocks = block_detector._ocr_free_block_detection(
+                temp_html_file, temp_screenshot_file
+            )
+
+            # Verify the pipeline was called
+            assert mock_process.call_count == 2  # Called with offset 0 and 50
+            mock_diff_pixels.assert_called_once()
+            mock_extract_text.assert_called_once()
+            mock_flatten.assert_called_once()
+            mock_get_blocks.assert_called_once()
+
+            # Verify result
+            assert isinstance(blocks, list)
+            assert len(blocks) == 1
+            assert isinstance(blocks[0], TextBlock)
+            assert blocks[0].text == 'test'
+
+    def test_ocr_free_block_detection_handles_no_different_pixels(
+        self, block_detector, temp_html_file, temp_screenshot_file
     ):
-        """Test that _simple_block_detection handles missing screenshot gracefully."""
-        blocks = block_detector._simple_block_detection("/nonexistent/path.png")
+        """Test that _ocr_free_block_detection handles case with no different pixels."""
+        with patch('src.evaluation.block_detector.process_html'), \
+             patch('src.evaluation.block_detector.generate_screenshot_from_html', return_value=True), \
+             patch('src.evaluation.block_detector.find_different_pixels', return_value=None):
 
-        # Should return empty list on error
-        assert isinstance(blocks, list)
-        assert len(blocks) == 0
+            blocks = block_detector._ocr_free_block_detection(
+                temp_html_file, temp_screenshot_file
+            )
+
+            # Should return empty list when no different pixels found
+            assert isinstance(blocks, list)
+            assert len(blocks) == 0
+
+    def test_ocr_free_block_detection_handles_screenshot_generation_failure(
+        self, block_detector, temp_html_file, temp_screenshot_file
+    ):
+        """Test that _ocr_free_block_detection handles screenshot generation failures."""
+        with patch('src.evaluation.block_detector.process_html'), \
+             patch('src.evaluation.block_detector.generate_screenshot_from_html', return_value=False):
+
+            blocks = block_detector._ocr_free_block_detection(
+                temp_html_file, temp_screenshot_file
+            )
+
+            # Should return empty list when screenshot generation fails
+            assert isinstance(blocks, list)
+            assert len(blocks) == 0
 
     def test_merge_blocks_by_bbox(self, block_detector):
         """Test merging blocks with identical bounding boxes."""
@@ -263,35 +324,45 @@ class TestBlockDetector:
         if not ground_truth_html.exists() or not ground_truth_screenshot.exists():
             pytest.skip("Ground truth files not found in data/ directory")
 
-        # Test with ground truth HTML and existing screenshot
-        blocks = block_detector.detect_blocks(
-            str(ground_truth_html),
-            str(ground_truth_screenshot)
-        )
+        # Mock the OCR-free detection to avoid dependencies
+        with patch.object(
+            block_detector, '_ocr_free_block_detection', return_value=[]
+        ) as mock_ocr:
+            blocks = block_detector.detect_blocks(
+                str(ground_truth_html),
+                str(ground_truth_screenshot)
+            )
 
-        # Should successfully detect blocks (even if empty for now)
-        assert isinstance(blocks, list)
-        # Current implementation returns empty list
-        assert len(blocks) == 0
+            # Should call OCR-free detection
+            mock_ocr.assert_called_once_with(
+                str(ground_truth_html),
+                str(ground_truth_screenshot)
+            )
+
+            # Should return list from detection
+            assert isinstance(blocks, list)
 
     def test_detect_blocks_with_generated_html(self, block_detector, tmp_path):
         """Test detect_blocks with generated HTML from GPT."""
         # Use the actual files from the data directory
         project_root = Path(__file__).parent.parent
-        generated_html = project_root / "data" / "11-gpt5-v2.html"
+        generated_html = project_root / "data" / "11gen.html"
 
         # Skip test if file doesn't exist
         if not generated_html.exists():
             pytest.skip("Generated HTML file not found in data/ directory")
 
         # Generate screenshot for the generated HTML
-        generated_screenshot = tmp_path / "11-gpt5-v2.png"
+        generated_screenshot = tmp_path / "11gen.png"
 
-        # Mock screenshot generation
+        # Mock screenshot generation and OCR-free detection
         with patch(
             'src.evaluation.block_detector.generate_screenshot_from_html',
             return_value=True
-        ) as mock_gen:
+        ) as mock_gen, \
+        patch.object(
+            block_detector, '_ocr_free_block_detection', return_value=[]
+        ):
             # Create dummy screenshot
             def create_screenshot(*args, **kwargs):
                 img = Image.new('RGB', (1280, 720), color='lightgray')
@@ -305,7 +376,7 @@ class TestBlockDetector:
                 str(generated_screenshot)
             )
 
-            # Should successfully detect blocks (even if empty for now)
+            # Should successfully detect blocks
             assert isinstance(blocks, list)
             mock_gen.assert_called_once()
 
@@ -318,7 +389,7 @@ class TestBlockDetector:
         ground_truth_screenshot = project_root / "data" / "11.png"
 
         # Generated files
-        generated_html = project_root / "data" / "11-gpt5-v2.html"
+        generated_html = project_root / "data" / "11gen.html"
 
         # Skip test if files don't exist
         if not all([
@@ -328,43 +399,40 @@ class TestBlockDetector:
         ]):
             pytest.skip("Required test files not found in data/ directory")
 
-        # Detect blocks from ground truth
-        gt_blocks = block_detector.detect_blocks(
-            str(ground_truth_html),
-            str(ground_truth_screenshot)
-        )
-
-        # Detect blocks from generated HTML (mock screenshot generation)
-        with patch(
-            'src.evaluation.block_detector.generate_screenshot_from_html',
-            return_value=True
+        # Mock OCR-free detection for both
+        with patch.object(
+            block_detector, '_ocr_free_block_detection', return_value=[]
         ):
-            # Create a temporary screenshot for generated HTML
-            import tempfile
-            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
-                gen_screenshot_path = tmp.name
-                img = Image.new('RGB', (1280, 720), color='white')
-                img.save(gen_screenshot_path)
+            # Detect blocks from ground truth
+            gt_blocks = block_detector.detect_blocks(
+                str(ground_truth_html),
+                str(ground_truth_screenshot)
+            )
 
-            try:
-                gen_blocks = block_detector.detect_blocks(
-                    str(generated_html),
-                    gen_screenshot_path
-                )
+            # Detect blocks from generated HTML (mock screenshot generation)
+            with patch(
+                'src.evaluation.block_detector.generate_screenshot_from_html',
+                return_value=True
+            ):
+                # Create a temporary screenshot for generated HTML
+                with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+                    gen_screenshot_path = tmp.name
+                    img = Image.new('RGB', (1280, 720), color='white')
+                    img.save(gen_screenshot_path)
 
-                # Both should return lists (even if empty for now)
-                assert isinstance(gt_blocks, list)
-                assert isinstance(gen_blocks, list)
+                try:
+                    gen_blocks = block_detector.detect_blocks(
+                        str(generated_html),
+                        gen_screenshot_path
+                    )
 
-                # Current implementation returns empty lists
-                # When actual detection is implemented, this test will compare blocks
-                assert len(gt_blocks) == 0
-                assert len(gen_blocks) == 0
-            finally:
-                # Clean up temporary file
-                import os
-                if os.path.exists(gen_screenshot_path):
-                    os.unlink(gen_screenshot_path)
+                    # Both should return lists
+                    assert isinstance(gt_blocks, list)
+                    assert isinstance(gen_blocks, list)
+                finally:
+                    # Clean up temporary file
+                    if os.path.exists(gen_screenshot_path):
+                        os.unlink(gen_screenshot_path)
 
 
 class TestBlockDetectorIntegration:
@@ -392,10 +460,12 @@ class TestBlockDetectorIntegration:
 
         screenshot_path = tmp_path / "integration_screenshot.png"
 
-        # Mock the actual screenshot generation to avoid playwright dependency
+        # Mock the actual screenshot generation and OCR-free detection
         with patch(
             'src.evaluation.block_detector.generate_screenshot_from_html',
             return_value=True
+        ), patch.object(
+            detector, '_ocr_free_block_detection', return_value=[]
         ):
             # Create a dummy screenshot
             img = Image.new('RGB', (1280, 720), color='lightblue')
@@ -405,6 +475,4 @@ class TestBlockDetectorIntegration:
             blocks = detector.detect_blocks(str(html_path), str(screenshot_path))
 
             assert isinstance(blocks, list)
-            # Current implementation returns empty list
-            assert len(blocks) == 0
 

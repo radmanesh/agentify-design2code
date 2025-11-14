@@ -50,7 +50,6 @@ def calculate_text_similarity(text1: str, text2: str) -> float:
         Similarity score in [0, 1]
     """
     ratio = SequenceMatcher(None, text1, text2).ratio()
-    logger.trace(f"Text similarity: {ratio:.4f} ('{text1[:20]}...' vs '{text2[:20]}...')")
     return ratio
 
 
@@ -89,7 +88,6 @@ def calculate_position_similarity(
     similarity = 1.0 - max_distance
 
     result = max(0.0, similarity)
-    logger.trace(f"Position similarity: {result:.4f} (centers: ({center1_x:.3f},{center1_y:.3f}) vs ({center2_x:.3f},{center2_y:.3f}), max_dist: {max_distance:.3f})")
     return result
 
 
@@ -127,7 +125,6 @@ def calculate_color_similarity(
         # Normalize to [0, 1] (delta_e of 100 = completely different)
         similarity = max(0, 1 - (delta_e / 100))
 
-        logger.trace(f"Color similarity: {similarity:.4f} (CIEDE2000 delta_e={delta_e:.2f}, RGB: {color1} vs {color2})")
         return similarity
 
     except ImportError:
@@ -142,7 +139,6 @@ def calculate_color_similarity(
         max_distance = 441.67
         similarity = 1 - (distance / max_distance)
         result = max(0.0, similarity)
-        logger.trace(f"Color similarity (RGB fallback): {result:.4f} (distance={distance:.2f}, RGB: {color1} vs {color2})")
         return result
 
 
@@ -169,7 +165,6 @@ def calculate_clip_similarity(
         return 0.5
 
     try:
-        logger.trace(f"Loading CLIP model (ViT-B-32) on {device}")
         # Load CLIP model and preprocessing
         model, _, preprocess = open_clip.create_model_and_transforms(
             'ViT-B-32',
@@ -178,13 +173,11 @@ def calculate_clip_similarity(
         model = model.to(device)
         model.eval()
 
-        logger.trace(f"Preprocessing images: ref={ref_image.size}, gen={gen_image.size}")
         # Preprocess images
         ref_tensor = preprocess(ref_image).unsqueeze(0).to(device)
         gen_tensor = preprocess(gen_image).unsqueeze(0).to(device)
 
         # Encode images
-        logger.trace("Encoding images with CLIP")
         with torch.no_grad():
             ref_features = model.encode_image(ref_tensor)
             gen_features = model.encode_image(gen_tensor)
@@ -198,7 +191,6 @@ def calculate_clip_similarity(
 
         # Convert from [-1, 1] to [0, 1]
         result = (similarity + 1) / 2
-        logger.trace(f"CLIP similarity: {result:.4f} (cosine={similarity:.4f})")
         return result
 
     except Exception as e:
@@ -225,14 +217,12 @@ def calculate_clip_similarity_from_paths(
     try:
         from PIL import Image
 
-        logger.trace(f"Loading images for CLIP: {image_path1}, {image_path2}")
         # Load images
         image1 = Image.open(image_path1).convert('RGB')
         image2 = Image.open(image_path2).convert('RGB')
 
         # Use the main CLIP similarity function
         score = calculate_clip_similarity(image1, image2)
-        logger.debug(f"CLIP similarity from paths: {score:.4f}")
         return score
 
     except Exception as e:

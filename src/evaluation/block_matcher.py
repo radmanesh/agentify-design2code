@@ -48,48 +48,31 @@ class BlockMatcher:
             Tuple of (matched_pairs, cost_matrix) where matched_pairs is
             a list of (ref_idx, gen_idx) tuples
         """
-        logger.debug(f"Matching {len(blocks_ref)} reference blocks with {len(blocks_gen)} generated blocks")
-        logger.trace(f"Min similarity threshold: {self.min_similarity_threshold}")
-        logger.trace(f"Consecutive bonus: {consecutive_bonus}, Window size: {window_size}")
-
         if len(blocks_ref) == 0 or len(blocks_gen) == 0:
             logger.warning("Empty block list, no matching possible")
             return [], np.array([])
 
         # Create cost matrix based on negative text similarity
-        logger.debug("Creating cost matrix from text similarities")
         cost_matrix = self._create_cost_matrix(blocks_ref, blocks_gen)
-        logger.trace(f"Cost matrix shape: {cost_matrix.shape}")
-        logger.trace(f"Cost matrix range: [{cost_matrix.min():.4f}, {cost_matrix.max():.4f}]")
 
         # Adjust costs for context similarity
         if window_size > 0:
-            logger.debug(f"Adjusting costs for context with window_size={window_size}")
             cost_matrix = self._adjust_cost_for_context(
                 cost_matrix, consecutive_bonus, window_size
             )
-            logger.trace(f"Adjusted cost matrix range: [{cost_matrix.min():.4f}, {cost_matrix.max():.4f}]")
 
         # Use Hungarian algorithm
-        logger.debug("Running Hungarian algorithm for optimal assignment")
         row_ind, col_ind = linear_sum_assignment(cost_matrix)
-        logger.trace(f"Hungarian algorithm produced {len(row_ind)} candidate pairs")
 
         # Filter matches by minimum similarity threshold
         matched_pairs = []
-        filtered_count = 0
         for i, j in zip(row_ind, col_ind):
             text_sim = calculate_text_similarity(
                 blocks_ref[i].text, blocks_gen[j].text
             )
             if text_sim >= self.min_similarity_threshold:
                 matched_pairs.append((i, j))
-                logger.trace(f"  Accepted: ref[{i}] <-> gen[{j}] (sim={text_sim:.4f})")
-            else:
-                filtered_count += 1
-                logger.trace(f"  Filtered: ref[{i}] <-> gen[{j}] (sim={text_sim:.4f} < {self.min_similarity_threshold})")
 
-        logger.debug(f"Matched {len(matched_pairs)} pairs, filtered {filtered_count} low-similarity pairs")
         return matched_pairs, cost_matrix
 
     def _create_cost_matrix(
@@ -109,7 +92,6 @@ class BlockMatcher:
         """
         n = len(blocks_ref)
         m = len(blocks_gen)
-        logger.trace(f"Creating {n}x{m} cost matrix")
         cost_matrix = np.zeros((n, m))
 
         for i in range(n):
@@ -119,7 +101,6 @@ class BlockMatcher:
                 )
                 cost_matrix[i, j] = -similarity
 
-        logger.trace(f"Cost matrix created with mean cost: {cost_matrix.mean():.4f}")
         return cost_matrix
 
     def _adjust_cost_for_context(
@@ -140,11 +121,9 @@ class BlockMatcher:
             Adjusted cost matrix
         """
         if window_size <= 0:
-            logger.trace("Window size is 0, skipping context adjustment")
             return cost_matrix
 
         n, m = cost_matrix.shape
-        logger.trace(f"Adjusting {n}x{m} cost matrix for context (window={window_size}, bonus={consecutive_bonus})")
         adjusted = np.copy(cost_matrix)
         adjustments_made = 0
 
@@ -177,8 +156,6 @@ class BlockMatcher:
                 adjusted[i, j] += bonus
                 adjustments_made += 1
 
-        logger.trace(f"Context adjustments applied to {adjustments_made} matrix cells")
-        logger.trace(f"Adjusted matrix mean: {adjusted.mean():.4f} (original: {cost_matrix.mean():.4f})")
         return adjusted
 
     def merge_blocks(

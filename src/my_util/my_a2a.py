@@ -25,7 +25,7 @@ async def get_agent_card(url: str) -> AgentCard | None:
     return card
 
 
-async def wait_agent_ready(url, timeout=30):
+async def wait_agent_ready(url, timeout=60):
     # wait until the A2A server is ready, check by getting the agent card
     retry_cnt = 0
     while retry_cnt < timeout:
@@ -45,10 +45,10 @@ async def wait_agent_ready(url, timeout=30):
 
 
 async def send_message(
-    url, message, task_id=None, context_id=None
+    url, message, task_id=None, context_id=None, timeout=150.0
 ) -> SendMessageResponse:
     card = await get_agent_card(url)
-    httpx_client = httpx.AsyncClient(timeout=120.0)
+    httpx_client = httpx.AsyncClient(timeout=timeout)
     client = A2AClient(httpx_client=httpx_client, agent_card=card)
 
     message_id = uuid.uuid4().hex

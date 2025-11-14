@@ -60,9 +60,23 @@ You should use the following configuration:
     print(response)
 
     print("Evaluation complete. Terminating agents...")
-    # Clean up agent processes
+
+    # Clean up agent processes with timeout
+    # Use kill() instead of terminate() if terminate doesn't work
     p_green.terminate()
-    p_green.join()
     p_white.terminate()
-    p_white.join()
+
+    # Wait with timeout to avoid blocking forever
+    p_green.join(timeout=5)
+    if p_green.is_alive():
+        print("Green agent didn't terminate, forcing kill...")
+        p_green.kill()
+        p_green.join()
+
+    p_white.join(timeout=5)
+    if p_white.is_alive():
+        print("White agent didn't terminate, forcing kill...")
+        p_white.kill()
+        p_white.join()
+
     print("Agents terminated.")
