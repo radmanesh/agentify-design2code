@@ -24,9 +24,26 @@ def white():
 
 
 @app.command()
-def launch():
-    """Launch the complete Design2Code evaluation workflow."""
-    asyncio.run(launch_evaluation())
+def launch(
+    green_host: str = typer.Option(None, "--green-host", "-gh", help="Green agent host (default: localhost or GREEN_AGENT_HOST env)"),
+    green_port: int = typer.Option(None, "--green-port", "-gp", help="Green agent port (default: 10001 or GREEN_AGENT_PORT env)"),
+    white_host: str = typer.Option(None, "--white-host", "-wh", help="White agent host (default: localhost or WHITE_AGENT_HOST env)"),
+    white_port: int = typer.Option(None, "--white-port", "-wp", help="White agent port (default: 10002 or WHITE_AGENT_PORT env)"),
+):
+    """
+    Launch the complete Design2Code evaluation workflow.
+
+    Agent addresses can be configured via:
+    1. Command-line arguments (highest priority)
+    2. Environment variables (GREEN_AGENT_HOST, GREEN_AGENT_PORT, etc.)
+    3. Default values (localhost:10001, localhost:10002)
+    """
+    asyncio.run(launch_evaluation(
+        green_host=green_host,
+        green_port=green_port,
+        white_host=white_host,
+        white_port=white_port
+    ))
 
 
 @app.command()

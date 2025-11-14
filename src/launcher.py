@@ -2,17 +2,36 @@
 
 import multiprocessing
 import json
+import os
+from typing import Optional
 from src.green_agent.agent import start_green_agent
 from src.white_agent.agent import start_white_agent
 from src.my_util import my_a2a
 
 
-async def launch_evaluation():
-    """Launch the complete Design2Code evaluation workflow with green and white agents."""
-    # start green agent
-    print("Launching green agent for Design2Code assessment...")
-    green_address = ("localhost", 10001)
+async def launch_evaluation(
+    green_host: Optional[str] = None,
+    green_port: Optional[int] = None,
+    white_host: Optional[str] = None,
+    white_port: Optional[int] = None
+):
+    """
+    Launch the complete Design2Code evaluation workflow with green and white agents.
+
+    Args:
+        green_host: Green agent host (default: from GREEN_AGENT_HOST env or "localhost")
+        green_port: Green agent port (default: from GREEN_AGENT_PORT env or 10001)
+        white_host: White agent host (default: from WHITE_AGENT_HOST env or "localhost")
+        white_port: White agent port (default: from WHITE_AGENT_PORT env or 10002)
+    """
+    # Get green agent address (CLI args > env vars > defaults)
+    green_host = green_host or os.getenv("GREEN_AGENT_HOST", "localhost")
+    green_port = green_port or int(os.getenv("GREEN_AGENT_PORT", "10001"))
+    green_address = (green_host, green_port)
     green_url = f"http://{green_address[0]}:{green_address[1]}"
+
+    # start green agent
+    print(f"Launching green agent for Design2Code assessment at {green_url}...")
     # Create green agent process
     p_green = multiprocessing.Process(
         target=start_green_agent, args=("design2code_green_agent", *green_address)
@@ -21,10 +40,14 @@ async def launch_evaluation():
     assert await my_a2a.wait_agent_ready(green_url), "Green agent not ready in time"
     print("Green agent is ready.")
 
-    # start white agent
-    print("Launching white agent for HTML generation...")
-    white_address = ("localhost", 10002)
+    # Get white agent address (CLI args > env vars > defaults)
+    white_host = white_host or os.getenv("WHITE_AGENT_HOST", "localhost")
+    white_port = white_port or int(os.getenv("WHITE_AGENT_PORT", "10002"))
+    white_address = (white_host, white_port)
     white_url = f"http://{white_address[0]}:{white_address[1]}"
+
+    # start white agent
+    print(f"Launching white agent for HTML generation at {white_url}...")
     # Create white agent process
     p_white = multiprocessing.Process(
         target=start_white_agent, args=("html_generation_white_agent", *white_address)
