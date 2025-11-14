@@ -1,0 +1,182 @@
+<!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>Wine Product</title> <style> * { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+font-family: Arial, sans-serif;
+color: #333;
+line-height: 1.5;
+}
+
+header {
+text-align: center;
+padding: 1rem;
+}
+
+header h1 {
+font-size: 1.8rem;
+margin-bottom: 0.3rem;
+}
+
+header p {
+font-size: 0.9rem;
+}
+
+.hero {
+width: 100%;
+height: auto;
+}
+
+.hero img {
+width: 100%;
+display: block;
+height: auto;
+}
+
+.product-section {
+padding: 1.5rem;
+display: flex;
+flex-direction: column;
+align-items: center;
+}
+
+.product-image {
+width: 100%;
+max-width: 600px;
+}
+
+.product-image img {
+width: 100%;
+height: auto;
+}
+
+.product-info {
+margin-top: 1rem;
+text-align: center;
+}
+
+.product-info h2 {
+font-size: 1.5rem;
+margin-bottom: 0.5rem;
+}
+
+.product-info p {
+font-size: 1rem;
+margin-bottom: 1rem;
+}
+
+.btn {
+background-color: #7c3c21;
+color: white;
+border: none;
+padding: 0.8rem 1.5rem;
+font-size: 1rem;
+cursor: pointer;
+}
+
+.btn:hover {
+background-color: #5a2a17;
+}
+
+.details-section {
+padding: 1.5rem;
+}
+
+.details-section h3 {
+font-size: 1.3rem;
+margin-bottom: 0.5rem;
+}
+
+.details-section p {
+font-size: 1rem;
+margin-bottom: 1rem;
+}
+
+footer {
+background-color: #f0f0f0;
+padding: 1rem;
+text-align: center;
+font-size: 0.9rem;
+}
+
+/* Tablet layout (iPad Pro width 1024px) */
+@media (min-width: 768px) and (max-width: 1279px) {
+header {
+display: flex;
+justify-content: space-between;
+align-items: center;
+padding: 1rem 2rem;
+text-align: left;
+}
+
+header h1 {
+  font-size: 2rem;
+}
+
+.product-section {
+  flex-direction: row;
+  justify-content: center;
+  gap: 2rem;
+}
+
+.product-image,
+.product-info {
+  width: 45%;
+  text-align: left;
+}
+
+.details-section {
+  padding: 2rem 3rem;
+}
+}
+
+/* Desktop layout (>=1280px) */
+@media (min-width: 1280px) {
+header {
+padding: 2rem 10%;
+text-align: left;
+}
+
+.hero img {
+  height: 500px;
+  object-fit: cover;
+}
+
+.product-section {
+  flex-direction: row;
+  justify-content: space-between;
+  padding: 3rem 10%;
+}
+
+.product-image {
+  width: 50%;
+}
+
+.product-info {
+  width: 45%;
+  text-align: left;
+  align-self: center;
+}
+
+.product-info h2 {
+  font-size: 2rem;
+}
+
+.details-section {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  padding: 3rem 10%;
+}
+
+.details-section div {
+  background-color: #fafafa;
+  padding: 1.5rem;
+  border-radius: 5px;
+}
+
+footer {
+  padding: 2rem 10%;
+  text-align: left;
+}
+}
+</style>
+
+</head> <body> <header> <h1>Elegant Wine Collection</h1> <p>Premium taste, timeless quality</p> </header> <section class="hero"> <img src="rick.jpg" alt="Wine Hero Image"> </section> <section class="product-section"> <div class="product-image"> <img src="rick.jpg" alt="Bottle of Wine"> </div> <div class="product-info"> <h2>Château du Soleil 2019</h2> <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fermentum, ac in donec posuere ut commodo.</p> <button class="btn">Buy Now</button> </div> </section> <section class="details-section"> <div> <h3>Tasting Notes</h3> <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed sodales orci at neque cursus.</p> </div> <div> <h3>Origin</h3> <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus a sapien sed nisl vestibulum.</p> </div> <div> <h3>Pairing</h3> <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris condimentum feugiat consequat.</p> </div> </section> <footer> <p>© 2024 Elegant Wine Co. All rights reserved.</p> </footer> </body> </html> 

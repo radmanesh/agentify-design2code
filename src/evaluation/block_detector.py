@@ -8,6 +8,7 @@ from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass
 from PIL import Image
 import numpy as np
+from .screenshot_generator import generate_screenshot_from_html
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -68,18 +69,22 @@ class BlockDetector:
             html_path: Path to HTML file
             output_path: Path to save screenshot
         """
-        # You can use playwright, selenium, or wkhtmltoimage
-        # For now, we'll assume screenshots are pre-generated
-        print(f"Screenshot generation needed: {html_path} -> {output_path}")
+        output_dir = Path(output_path).parent
+        output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Example using playwright (you'd need to install it):
-        # from playwright.sync_api import sync_playwright
-        # with sync_playwright() as p:
-        #     browser = p.chromium.launch()
-        #     page = browser.new_page()
-        #     page.goto(f"file://{os.path.abspath(html_path)}")
-        #     page.screenshot(path=output_path)
-        #     browser.close()
+        logger.debug(f"Generating screenshot for {html_path}")
+        success = generate_screenshot_from_html(html_path, output_path)
+
+        if not success or not os.path.exists(output_path):
+            logger.error(
+                "Failed to generate screenshot from %s to %s",
+                html_path,
+                output_path,
+            )
+            raise RuntimeError(
+                f"Screenshot generation failed for {html_path}; "
+                "ensure Playwright or Selenium dependencies are installed."
+            )
 
     def _simple_block_detection(self, screenshot_path: str) -> List[TextBlock]:
         """

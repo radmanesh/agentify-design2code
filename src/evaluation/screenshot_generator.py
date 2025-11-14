@@ -10,7 +10,7 @@ def generate_screenshot_from_html(
     html_path: str,
     output_path: str,
     width: int = 1280,
-    height: int = 720,
+    height: Optional[int] = None,
     method: str = "playwright"
 ) -> bool:
     """
@@ -20,7 +20,8 @@ def generate_screenshot_from_html(
         html_path: Path to HTML file to render
         output_path: Path where screenshot PNG should be saved
         width: Viewport width in pixels (default: 1280)
-        height: Viewport height in pixels (default: 720)
+        height: Requested viewport height. Ignored for Playwright full-page
+            capture but still accepted for API compatibility.
         method: Method to use ("playwright" or "selenium", default: "playwright")
 
     Returns:
@@ -43,7 +44,7 @@ def _generate_screenshot_sync(
     html_path: str,
     output_path: str,
     width: int = 1280,
-    height: int = 720,
+    height: Optional[int] = None,
     method: str = "playwright"
 ) -> bool:
     """
@@ -53,7 +54,8 @@ def _generate_screenshot_sync(
         html_path: Path to HTML file to render
         output_path: Path where screenshot PNG should be saved
         width: Viewport width in pixels (default: 1280)
-        height: Viewport height in pixels (default: 720)
+        height: Requested viewport height. Ignored for Playwright full-page
+            capture but still accepted for API compatibility.
         method: Method to use ("playwright" or "selenium", default: "playwright")
 
     Returns:
@@ -67,8 +69,12 @@ def _generate_screenshot_sync(
             with sync_playwright() as p:
                 # Launch browser in headless mode
                 browser = p.chromium.launch(headless=True)
-                # Create new page with specified viewport
-                page = browser.new_page(viewport={"width": width, "height": height})
+                # Create new page with specified viewport width. Playwright
+                # requires a height value, but full_page=True below will still
+                # capture the entire document. Default height falls back to 720
+                # if none is supplied.
+                viewport = {"width": width, "height": height or 720}
+                page = browser.new_page(viewport=viewport)
 
                 # Load HTML file
                 html_file_url = f"file://{Path(html_path).resolve()}"
@@ -77,8 +83,8 @@ def _generate_screenshot_sync(
                 # Wait a bit for rendering to complete
                 time.sleep(0.5)
 
-                # Take screenshot
-                page.screenshot(path=output_path, full_page=False)
+                # Take full-page screenshot to capture entire height
+                page.screenshot(path=output_path, full_page=True)
 
                 # Close browser
                 browser.close()
@@ -103,7 +109,9 @@ def _generate_screenshot_sync(
             chrome_options.add_argument("--headless")
             chrome_options.add_argument("--no-sandbox")
             chrome_options.add_argument("--disable-dev-shm-usage")
-            chrome_options.add_argument(f"--window-size={width},{height}")
+            # Use a large height for selenium to capture full page
+            selenium_height = height if height else 10000
+            chrome_options.add_argument(f"--window-size={width},{selenium_height}")
 
             # Create driver
             driver = webdriver.Chrome(options=chrome_options)
@@ -116,7 +124,7 @@ def _generate_screenshot_sync(
                 # Wait for page to load
                 time.sleep(1)
 
-                # Take screenshot
+                # Take screenshot (selenium's save_screenshot captures full page by default)
                 driver.save_screenshot(output_path)
 
                 return True
