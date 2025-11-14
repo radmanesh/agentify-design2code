@@ -1,5 +1,6 @@
 """CLI entry point for agentify-design2code."""
 
+import os
 import typer
 import asyncio
 
@@ -12,15 +13,45 @@ app = typer.Typer(help="Agentified Design2Code - HTML generation assessment fram
 
 
 @app.command()
-def green():
-    """Start the green agent (assessment manager for Design2Code tasks)."""
-    start_green_agent()
+def green(
+    host: str = typer.Option(None, "--host", help="Green agent host (default: localhost or GREEN_AGENT_HOST env)"),
+    port: int = typer.Option(None, "--port", "-p", help="Green agent port (default: 10001 or GREEN_AGENT_PORT env)"),
+):
+    """
+    Start the green agent (assessment manager for Design2Code tasks).
+
+    Address can be configured via:
+    1. Command-line arguments (highest priority)
+    2. Environment variables (GREEN_AGENT_HOST, GREEN_AGENT_PORT)
+    3. Default values (localhost:10001)
+    """
+    # Get address (CLI args > env vars > defaults)
+    host = host or os.getenv("GREEN_AGENT_HOST", "localhost")
+    port = port or int(os.getenv("GREEN_AGENT_PORT", "10001"))
+
+    print(f"Starting green agent at http://{host}:{port}...")
+    start_green_agent(host=host, port=port)
 
 
 @app.command()
-def white():
-    """Start the white agent (target being tested for HTML generation)."""
-    start_white_agent()
+def white(
+    host: str = typer.Option(None, "--host", help="White agent host (default: localhost or WHITE_AGENT_HOST env)"),
+    port: int = typer.Option(None, "--port", "-p", help="White agent port (default: 10002 or WHITE_AGENT_PORT env)"),
+):
+    """
+    Start the white agent (target being tested for HTML generation).
+
+    Address can be configured via:
+    1. Command-line arguments (highest priority)
+    2. Environment variables (WHITE_AGENT_HOST, WHITE_AGENT_PORT)
+    3. Default values (localhost:10002)
+    """
+    # Get address (CLI args > env vars > defaults)
+    host = host or os.getenv("WHITE_AGENT_HOST", "localhost")
+    port = port or int(os.getenv("WHITE_AGENT_PORT", "10002"))
+
+    print(f"Starting white agent at http://{host}:{port}...")
+    start_white_agent(host=host, port=port)
 
 
 @app.command()
