@@ -7,6 +7,15 @@ from typing import List, Tuple
 from PIL import Image
 import numpy as np
 
+# Patch for numpy compatibility with colormath library
+# numpy.asscalar was removed in numpy 1.23+, but colormath still uses it
+def _patch_asscalar(a):
+    """Compatibility patch for numpy.asscalar removal."""
+    return a.item()
+
+if not hasattr(np, "asscalar"):
+    setattr(np, "asscalar", _patch_asscalar)
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
